@@ -11,6 +11,9 @@ import pandas as pd
 import config
 from newsapi import NewsApiClient
 from newspaper import Article
+from google.cloud import language
+from google.cloud.language import enums
+from google.cloud.language import types
 
 '''
     Function: 
@@ -70,6 +73,36 @@ def get_bias(source_id):
 
 
 
+def get_google_sentiment_score(contents):
+    client = language.LanguageServiceClient.from_service_account_json(
+        config.GOOGLE_SENTIMENT_ANALYSIS_CREDENTIAL_PATH)
+    document = types\
+               .Document(content=contents,
+                         type=enums.Document.Type.PLAIN_TEXT)
+    sentiment_score = client\
+                      .analyze_sentiment(document=document)\
+                      .document_sentiment\
+                      .score           
+    return sentiment_score
+
+
+def get_sentiment(df):
+    sentiment = {'index':[], 'sentiment':[]} 
+    for index, entry in df.iterrows():
+         s = get_google_sentiment_score(entry.fulltext)
+         print(index, s)
+         sentiment['index'].append(index)
+         sentiment['sentiment'].append(s)
+
+    sentdf = pd.DataFrame(sentiment)
+    newdf = df.copy()
+    newdf['sentiment'] = sentdf['sentiment']
+    
+    return newdf
+
+
+
+
 
 
 '''
@@ -121,6 +154,8 @@ def get_news(search_term, considered_sources):
 
 
 
+
+
 def main():
     consideredsources = ['al-jazeera-english', 'ars-technica', 'associated-press', 
                          'axios', 'bbc-news', 'bloomberg', 'breitbart-news', 'business-insider' ,
@@ -135,3 +170,9 @@ def main():
     
     df = get_news(searchterm, consideredsources)
     print(df)
+    
+    
+    
+
+if __name__ == "__main__":
+    main()
